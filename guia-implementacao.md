@@ -54,8 +54,6 @@
 
 **Por que:** o bucket servirá para armazenar imagens, arquivos estáticos e backups de forma durável e escalável.
 
-### Passo a passo (Console)
-
 1. Pesquise **S3** no Console AWS → **Create bucket**.  
 2. Nomeie o bucket:
 3. Região: selecione a mesma região que usará para EC2 (ex: `us-east-1` ou `sa-east-1`).  
@@ -64,4 +62,79 @@
 5. Em **Bucket Versioning**, marque **Enable**.  
 6. Clique em **Create bucket**.
 7. Habilite o **versionamento** do bucket em propriedades
+
+
+## 🪣 3) Lançar uma EC2
+
+1. Pesquise EC2
+2. Crie uma instância com o nome **abstergo-web-1** 
+3. Use Amazon linux, o tipo escolha t2.micro
+4. Par de chaves: crie uma ou use uma existente 
+5. Network settings: VPC (vamos criar uma), subnet pública, habilite o Auto-assign public IP: Enable 
+6. Security group: HTTP (80) SSH (22) 
+
+Em advanced details (Detalhes avançados) - User data (dados do usuário) cole o script:
+
+#!/bin/bash
+yum update -y
+yum install -y httpd amazon-cloudwatch-agent
+systemctl start httpd
+systemctl enable httpd
+echo "<h1>Abstergo Industries - Site em EC2</h1>" > /var/www/html/index.html
+systemctl start amazon-cloudwatch-agent
+systemctl enable amazon-cloudwatch-agent
+
+# ⚖️  4) - Criar Target Group e Application Load Balancer (ALB)
+
+## 🎯 Objetivo
+Configurar um **Application Load Balancer (ALB)** para distribuir (ou, neste caso, rotear) tráfego HTTP para sua instância EC2.  
+Mesmo com apenas uma EC2, esse passo é essencial para entender como o balanceamento de carga funciona e preparar o ambiente para escalar futuramente.
+
+---
+
+## 🔍 Conceitos rápidos
+
+**ALB (Application Load Balancer):** distribui o tráfego web (HTTP/HTTPS) entre múltiplas instâncias EC2 ou serviços.  
+**Target Group:** grupo de destinos (targets) que o ALB usa para enviar o tráfego, no nosso caso, a EC2.  
+**Health Check:** o ALB verifica constantemente se as instâncias estão “saudáveis” (respondendo com sucesso).
+
+---
+
+## 🧱 Pré-requisitos
+
+Antes de começar, garanta que você já tenha:
+
+✅ Sua **VPC personalizada** (com duas subnets públicas, uma em cada zona de disponibilidade)  
+✅ Sua **EC2 rodando** (com web server ativo e porta 80 aberta)  
+✅ Um **Security Group para a EC2** (permitindo HTTP da rede interna ou do SG do ALB)
+
+# Criando grupo de destino ou target group
+
+1. No Console da AWS, pesquise por EC2.
+
+2. No menu lateral esquerdo, clique em Target Groups (Proximo de balanceamento de carga) e depois em Create target group.
+
+3. Configure os seguintes campos:
+
+Target type: Instances
+
+Target group name: abstergo-targets
+
+Protocol: HTTP
+
+Port: 80
+
+VPC: selecione sua VPC personalizada
+
+Health check path: / (ou /index.html se quiser testar página específica)
+
+4. Clique em Next.
+
+Na lista de instâncias, selecione sua EC2.
+
+Clique em Include as pending below e depois em Create target group.
+
+Aguarde 1–2 minutos até o status da EC2 mudar para Healthy em “Targets”.
+
+# Criando o ALB ou Application Load Balancer
 
