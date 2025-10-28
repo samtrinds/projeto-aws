@@ -1,4 +1,4 @@
-# Implementando o Projeto AWS Free Tier (Abstergo Industries)
+# Implementando o projeto da Abstergo Industries (Free Tier)
 
 > **Contexto:**  
 > Projeto pessoal e fictício criado para estudar e testar conhecimentos de AWS.  
