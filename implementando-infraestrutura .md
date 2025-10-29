@@ -1,3 +1,7 @@
+
+---
+
+```markdown
 # Implementando o projeto da Abstergo Industries (Free Tier)
 
 > **Contexto:**  
@@ -44,12 +48,9 @@ Nunca use a conta root para tarefas do dia a dia. O ideal é criar um usuário c
 1. No console da AWS, procure por **IAM** e acesse o serviço.  
 2. No menu lateral, clique em **User groups** e depois em **Create group**.  
 3. Nomeie o grupo como `adm-abstergo`.  
-4. Em **Attach permissions policies**, adicione as políticas:  
-   - AmazonEC2FullAccess  
-   - AmazonS3FullAccess  
-   - CloudWatchFullAccess  
-   - ElasticLoadBalancingFullAccess  
-   - AutoScalingFullAccess  
+4. Em **Attach permissions policies**, **evite** anexar múltiplas policies `*FullAccess` sem critério. Para fins de estudo você pode:
+   - Anexar a policy gerenciada `AdministratorAccess` para um grupo administrativo *temporariamente* enquanto aprende, **ou**
+   - (melhor) **criar uma policy personalizada** que contenha apenas as permissões necessárias (EC2, S3, CloudWatch, ElasticLoadBalancing, AutoScaling) seguindo o princípio do menor privilégio.
 5. Clique em **Create group**.
 
 6. Agora vá até **Users** e clique em **Create user**.  
@@ -73,8 +74,7 @@ O Amazon S3 será usado para armazenar arquivos estáticos, como imagens, script
 1. No console da AWS, busque por **S3** e clique em **Create bucket**.  
 2. Escolha um nome único, por exemplo: `abstergo-assets`.  
 3. Escolha a região mais próxima de você (ex: `sa-east-1`).  
-4. Desmarque **Block all public access** **somente** se for realmente necessário compartilhar arquivos.  
-   Para este projeto, mantenha **bloqueado** o acesso público.  
+4. **Mantenha** o bloqueio de acesso público ativado por padrão (Block all public access) a menos que você tenha um motivo explícito para tornar objetos públicos.  
 5. Em **Bucket Versioning**, ative **Enable versioning**. Isso garante que versões antigas de arquivos possam ser recuperadas caso algo seja sobrescrito.  
 6. Mantenha as outras opções padrão e clique em **Create bucket**.
 
@@ -92,10 +92,10 @@ Será criada uma instância EC2 que servirá como servidor web principal do proj
 
 ### Passos
 
-1. No console da AWS, procure por **EC2** e clique em **Launch instance** ou **executar instance** mesmo não tendo nenhuma instância, ao clicar em executar  .  
+1. No console da AWS, procure por **EC2** e clique em **Launch instance**.  
 2. Nomeie a instância como `abstergo-web-01`.  
-3. Em **Application and OS Images (AMI)**, selecione **Amazon Linux 2023 (Free Tier eligible)**.  
-4. Em **Instance type**, escolha `t2.micro` (gratuito no Free Tier).  
+3. Em **Application and OS Images (AMI)**, selecione **Amazon Linux 2023 (Free Tier eligible)** ou a AMI compatível indicada pelo console.  
+4. Em **Instance type**, escolha `t2.micro` (gratuito no Free Tier),é interessante confirmar que a AMI escolhida suporta o tipo `t2.micro`.  
 5. Crie um novo par de chaves (`abstergo-keypair`) e baixe o arquivo `.pem`.  
 6. Em **Network settings**, crie um novo **Security Group** com as seguintes regras:  
    - **SSH (22)**: acesso permitido apenas do seu IP  
@@ -140,6 +140,7 @@ EOF
   -m ec2 \
   -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json \
   -s
+
 
 ```
 
@@ -206,10 +207,10 @@ O Launch Template define a configuração base da instância, e o Auto Scaling G
 2. Clique em **Create launch template**.  
 3. Em **Launch template name**, digite `abstergo-template`.  
 4. Em **Version description**, escreva `versão inicial`.  
-5. Escolha a AMI **Amazon Linux 2 (Free Tier eligible)**.  
+5. Escolha a AMI compatível selecionada anteriormente.  
 6. Em **Instance type**, selecione `t2.micro`.  
 7. Em **Key pair**, use a chave que você criou antes.  
-8. Em **Network settings**, deixe **Don’t include in launch template** (o ASG vai escolher).  
+8. Em **Network settings**, deixar sem incluir a VPC/subnet no template é aceitável (o ASG irá escolher as subnets ao criar as instâncias).  
 9. Em **Security groups**, selecione o grupo que permite tráfego HTTP (porta 80).  
 10. Mantenha o volume padrão de 8 GiB.  
 11. Em **Advanced details**, cole o seguinte script em User data:
@@ -273,24 +274,24 @@ echo "<h1>Bem-vindo à Abstergo Industries - Servidor Auto Scaling</h1>" > /var/
 
 # Você também pode criar o Launch Template e o Auto Scaling Group diretamente pelo CloudShell, usando os comandos abaixo:
 
-aws ec2 create-launch-template \
-  --launch-template-name abstergo-template \
-  --version-description "v1" \
-  --launch-template-data '{
-    "ImageId":"ami-0c55b159cbfafe1f0",
-    "InstanceType":"t2.micro",
-    "SecurityGroupIds":["sg-xxxxxxxx"],
-    "UserData":"IyEvYmluL2Jhc2gKeXVtIHVwZGF0ZSAtCnRvdWNoIC9ldGMvaHR0cGQvaHR0cGQub24KCnl1bSBpbnN0YWxsIC15IGh0dHBkCnN5c3RlbWN0bCBlbmFibGUgaHR0cGQKc3lzdGVtY3RsIHN0YXJ0IGh0dHBkCmVjaG8gIjxoMT5CZW0tdmluZG8gw6AgQWJzdGVyZ28gSW5kdXN0cmllcyAtIFNlcnZpZG9yIEF1dG8gU2NhbGluZzwvaDE+IiA+IC92YXIvd3d3L2h0bWwvaW5kZXguaHRtbA=="
-  }'
+aws ec2 create-launch-template
+--launch-template-name abstergo-template
+--version-description "v1"
+--launch-template-data '{
+"ImageId":"ami-0c55b159cbfafe1f0",
+"InstanceType":"t2.micro",
+"SecurityGroupIds":["sg-xxxxxxxx"],
+"UserData":"IyEvYmluL2Jhc2gKeXVtIHVwZGF0ZSAtCnRvdWNoIC9ldGMvaHR0cGQvaHR0cGQub24KCnl1bSBpbnN0YWxsIC15IGh0dHBkCnN5c3RlbWN0bCBlbmFibGUgaHR0cGQKc3lzdGVtY3RsIHN0YXJ0IGh0dHBkCmVjaG8gIjxoMT5CZW0tdmluZG8gw6AgQWJzdGVyZ28gSW5kdXN0cmllcyAtIFNlcnZpZG9yIEF1dG8gU2NhbGluZzwvaDE+IiA+IC92YXIvd3d3L2h0bWwvaW5kZXguaHRtbA=="
+}'
 
-aws autoscaling create-auto-scaling-group \
-  --auto-scaling-group-name abstergo-asg \
-  --launch-template LaunchTemplateName=abstergo-template \
-  --min-size 1 \
-  --max-size 2 \
-  --desired-capacity 1 \
-  --vpc-zone-identifier "subnet-xxxxxx,subnet-yyyyyy" \
-  --target-group-arns "arn:aws:elasticloadbalancing:..."
+aws autoscaling create-auto-scaling-group
+--auto-scaling-group-name abstergo-asg
+--launch-template LaunchTemplateName=abstergo-template
+--min-size 1
+--max-size 2
+--desired-capacity 1
+--vpc-zone-identifier "subnet-xxxxxx,subnet-yyyyyy"
+--target-group-arns "arn:aws:elasticloadbalancing:..."
 
 ## Monitoramento e CloudWatch
 
